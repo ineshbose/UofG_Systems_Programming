@@ -1,0 +1,266 @@
+% SP(H) CW1 Report written in LaTeX by Inesh Bose
+
+\documentclass{article}
+
+%==============================================================================
+%% Packages and Command Setting
+\usepackage[T1]{fontenc}
+\setcounter{secnumdepth}{0}
+\newcommand{\code}[1]{\texttt{#1}}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{hyperref}
+\usepackage{minted}
+
+%==============================================================================
+%% Title Page
+
+\title{Systems Programming\\ \normalsize{\textbf{Coursework 1:} Website Monitoring}}
+\author{Inesh Bose}
+\date{}
+
+\begin{document}
+
+\definecolor{bg}{rgb}{0.95,0.95,0.95}
+\renewcommand{\thefootnote}{}
+
+\maketitle
+\vspace{2cm}
+\tableofcontents
+\addtocontents{toc}{\protect\thispagestyle{empty}}
+\pagenumbering{gobble}
+
+\footnote{To skip to the state of the submission, move to Development.}
+
+%==============================================================================
+%% Introduction
+
+\newpage
+
+\section{Background / Introduction}
+
+This assignment requires an implementation of a (balanced) binary search tree based on an EU regulation that allows tracking accesses by Top Level Domain (TLD) between specific dates. This means that the nodes must be sorted according to their TLD (key) alphabetically.
+
+\subsection{AVL Tree}
+An AVL Tree is a data-structure similar to binary search tree, but is self-balancing. It was invented by \textbf{A}delson-\textbf{V}elsky and \textbf{L}andis. The advantage to this is that the worst-case time complexity of insertion and deletion is\textbf{ O(log\textit{n})} compared to \textbf{O(\textit{n})} of a standard binary search tree.
+
+\subsection{\code{AVLtree.java}}
+An implementation was provided (written in Java).
+
+\begin{minted}[bgcolor=bg]{java}
+public class AVLtree {
+ 
+    private Node root;
+ 
+    private static class Node {
+        private int key;
+        private int balance;
+        private int height;
+        private Node left;
+        private Node right;
+        private Node parent;
+ 
+        Node(int key, Node parent) {
+            this.key = key;
+            this.parent = parent;
+        }
+    }
+    
+    ...
+
+}
+\end{minted}
+
+
+%==============================================================================
+%% date.c
+
+\newpage
+
+\section{\code{date.c}}
+
+\vspace{0.5cm}
+
+\subsection{\code{struct date}}
+The Date structure consists of three integers that the string of format\\ \code{"DD/MM/YYYY"} will be split into using \code{strtok()} and \code{atoi()}.
+
+\begin{minted}[bgcolor=bg]{c}
+struct date{
+    long day;   // Day of the month
+    long month; // Month of the year
+    long year;  // Year of existence
+};
+\end{minted}
+
+\vspace{1cm}
+
+\subsection{Header File (\code{date.h})}
+The header file contains the following pre-\textbf{declared} functions.
+
+\begin{minted}[bgcolor=bg]{c}
+
+/* Creates a struct date object based on
+   datestr, and mallocs memory to it. */
+Date *date_create(char *datestr);
+
+/* Creates and returns another struct date object with
+   same values, but different location in memory */
+Date *date_duplicate(Date *d);
+
+/* 
+ * Compares two struct date objects and returns result
+ *  1  if date1 > date2
+ *  0  if date1 == date2
+ * -1  if date1 < date2
+ */
+int compare(Date *date1, Date *date2);
+
+/* Frees the memory allocated to struct date object */
+void date_destroy(Date *d);
+\end{minted}
+
+% \noindent These were defined in \code{date.c}.
+
+%==============================================================================
+%% tldlist.c
+
+\newpage
+
+\section{\code{tldlist.c}}
+
+\subsection{\code{struct tldnode}}
+This structure defines a node/leaf of the tree.
+
+\begin{minted}[bgcolor=bg]{c}
+struct tldnode{
+
+    char *tldname;  // top level domain
+    long count;     // number of logs for tld
+
+    long height;
+    long balance;
+
+    struct tldnode *left;
+    struct tldnode *right;
+    struct tldnode *parent;
+
+};
+\end{minted}
+
+
+\subsection{\code{struct tldlist}}
+This structure acts like the AVL tree.
+
+\begin{minted}[bgcolor=bg]{c}
+struct tldlist{
+
+    Date *begin;    // earliest date for a log
+    Date *end;      // latest date for a log
+    long count;     // number of successful insertions
+    struct tldnode *root;
+
+};
+\end{minted}
+
+
+\subsection{\code{struct tlditerator}}
+This structure iterates through the AVL tree (so that the pointer of the root in \code{tldlist} does not change) using in-order traversal.
+
+\begin{minted}[bgcolor=bg]{c}
+struct tlditerator{
+    struct tldnode *next;
+    struct tldnode *prev;
+    struct tldnode *root;
+};
+\end{minted}
+
+\newpage
+
+\subsection{Header File (\code{tldlist.h})}
+The header file contains the following pre-\textbf{declared} functions.
+
+\begin{minted}[bgcolor=bg]{c}
+TLDList *tldlist_create(Date *begin, Date *end);
+void tldlist_destroy(TLDList *tld);
+int tldlist_add(TLDList *tld, char *hostname, Date *d);
+long tldlist_count(TLDList *tld);
+
+TLDIterator *tldlist_iter_create(TLDList *tld);
+TLDNode *tldlist_iter_next(TLDIterator *iter);
+void tldlist_iter_destroy(TLDIterator *iter);
+
+char *tldnode_tldname(TLDNode *node);
+long tldnode_count(TLDNode *node);
+\end{minted}
+
+\vspace{1cm}
+
+\subsection{Helper Functions}
+These functions are not declared/included in the header file but are essential.\\
+\footnotesize{Note: I didn't put the function protocols on the top since I'm not fond of having function definitions/bodies away from declarations. It's just a preference.} \normalsize
+
+\begin{minted}[bgcolor=bg]{c}
+void tldnode_destroy(TLDNode *node);
+TLDNode *tldnode_create(char *tldname, TLDNode *parent);
+
+int height(TLDNode *n);
+void reheight(TLDNode *n);
+void setBalance(TLDNode *n);
+
+TLDNode *rotateLeft(TLDNode *a);
+TLDNode *rotateRight(TLDNode *a);
+TLDNode *rotateLeftThenRight(TLDNode *n);
+TLDNode *rotateRightThenLeft(TLDNode *n);
+
+void rebalance(TLDNode *n, TLDList *tld);
+\end{minted}
+
+%==============================================================================
+%% Development
+
+\newpage
+
+\section{Development}
+Completing this program was undoubtedly difficult. It involved a lot of debugging and testing.
+
+\subsection{Approach}
+After spending three whole days on \code{tldlist.c}, I gave up and started from scratch. I first focused on insertion and implementing a standard binary search tree. This helped clear the clutter and keep the code in its bare bones so that memory errors like Segmentation Fault could get fixed. After everything was in order, I implemented balancing and was successful.
+
+\subsection{Debugging}
+The approach of printing lines like \code{we do reach here} is my go-to approach, but \code{printf()} was not available to solve Segmentation Fault since by the time the error is caught, the request with the monitor driver is abandoned. Therefore, \code{gdb} (GNU Debugger) was used.
+
+\begin{minted}[bgcolor=bg]{shell-session}
+$ gdb ./tldmonitor --args 01/01/2017 01/09/2020 small.txt
+\end{minted}
+
+\vspace{-0.75cm}
+\begin{minted}[bgcolor=bg]{cl}
+Starting program: /tldmonitor 01/01/2017 01/09/2020 small.txt
+
+Program received signal SIGSEGV, Segmentation fault.
+0x0000000000401b24 in tldlist_add (
+tld=0x4066f0, hostname=0x7ffffffed77b "www.intel.com", d=0x406b20
+) at tldlist.c:112
+
+112     if(strcmp(tld->node->hostname, hostname)
+            && (date_compare(tld->node->d, d) == 0)){
+
+\end{minted}
+
+\subsection{Testing}
+After successful implementations of everything, the program was tested using
+
+
+\begin{table}[H]
+\centering
+\begin{tabular}{c|c|c}
+\textbf{\code{small.txt}} & \textbf{\code{large.txt}}       & \textbf{\code{16MilTLDs.txt}}       \\ \hline
+12 logs & 10,095 logs & 16,913,170 logs \\
+6 TLDs  & 68 TLDs     & 62 TLDs                            
+\end{tabular}
+\end{table}
+
+\noindent The code was compiled and executed \textbf{mainly} on Linux machines - Ubuntu WSL1 on Windows 10 and university machines (\code{stlinux02..08} using SSH). So far, there have been no bugs and limitations found.
+
+
+\end{document}
