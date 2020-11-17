@@ -1,0 +1,16 @@
+all: html undef_san_tld addr_san_tld mem_san_tld leak_san_tld
+
+html: date.c tldlist.c
+	clang --analyze --analyzer-output html date.c tldlist.c
+
+undef_san_tld: tldlist.c date.c tldmonitor.c
+	clang -fsanitize=undefined -Wall -Werror tldlist.c date.c tldmonitor.c -o undef_san_tld.o
+
+addr_san_tld: date.c tldlist.c tldmonitor.c
+	clang -fsanitize=address -fno-omit-frame-pointer -O1 -g -Wall -Werror date.c tldlist.c tldmonitor.c -o addr_san_tld.o
+
+mem_san_tld: tldlist.c date.c tldmonitor.c
+	clang -fsanitize=memory -fno-omit-frame-pointer -g -O2 tldlist.c date.c tldmonitor.c -o mem_san_tld.o
+
+leak_san_tld: tldlist.c date.c tldmonitor.c
+	clang -fsanitize=address -g tldlist.c date.c tldmonitor.c -o leak_san_tld.o

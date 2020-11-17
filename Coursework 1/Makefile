@@ -1,14 +1,10 @@
-tldmonitor: tldmonitor.o date.o tldlist.o
-	clang -Wall -Werror -g -o tldmonitor tldmonitor.o date.o tldlist.o
+all: sanitiser actual
 
-date.o: date.h date.c
-	clang -Wall -Werror -g -o date.o -c date.c
+sanitiser:
+	make -f sanitiser_makefile
 
-tldlist.o: tldlist.h tldlist.c
-	clang -Wall -Werror -g -o tldlist.o -c tldlist.c
-
-tldmonitor.o: tldmonitor.c date.h tldlist.h
-	clang -Wall -Werror -g -o tldmonitor.o -c tldmonitor.c
+actual:
+	make -f actual_makefile
 
 clean:
 	rm -f *.o tldmonitor
