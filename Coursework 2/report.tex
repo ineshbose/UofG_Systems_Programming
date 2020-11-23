@@ -1,0 +1,229 @@
+% SP(H) CW2 Report written in LaTeX by Inesh Bose
+
+\documentclass{article}
+
+%==============================================================================
+%% Packages and Command Setting
+\usepackage[utf8]{inputenc}
+\setcounter{secnumdepth}{0}
+\usepackage[shortlabels]{enumitem}
+\usepackage{layout}
+\usepackage{multirow}
+\usepackage{hyperref}
+\usepackage{minted}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\entry}[3]{\begin{tabular}[c]{@{}l@{}}\code{#1}\\ \code{#2}\\ \code{#3}\end{tabular}}
+ 
+%==============================================================================
+%% Title Page
+
+\title{Systems Programming\\ \normalsize{\textbf{Coursework 2:} Concurrent Dependency Discoverer}}
+\author{\bf Inesh Bose}
+\date{}
+
+\begin{document}
+
+\definecolor{bg}{rgb}{0.95,0.95,0.95}
+
+\maketitle
+\vspace{1cm}
+
+\tableofcontents
+\addtocontents{toc}{\protect\thispagestyle{empty}}
+\pagenumbering{gobble}
+
+%==============================================================================
+%% Status Report
+
+\vspace{2cm}
+
+\section{Status Report}
+
+The program compiles and runs successfully. No bugs or limitations have been found so far. No special changes need to be made to the environment (except making sure that you run \code{source /usr/local/bin/clang9.setup} on uni-machines for C++17). \code{dependencyDiscoverer.cpp} is the only source-code file that is mostly the same but has been refactored according to the specification that enables successful threading according to number of threads given in \code{CRAWLER\_THREADS} that can be done using \code{EXPORT CRAWLER\_THREADS=4}.
+
+\vspace{1cm}
+
+%==============================================================================
+%% Screenshots: Build & Runtimes
+
+\newpage
+
+\section{Screenshots: Build \& Runtimes}
+
+\vspace{0.2cm}
+
+The following screenshots are in the form of \code{vertabim}/\code{minted} blocks instead and have not be falsified.
+
+\vspace{0.5cm}
+
+\begin{enumerate}[a)]
+
+    \item The path of executing the program (\code{pwd})
+\begin{minted}[bgcolor=bg]{bash}
+-bash-4.2$ pwd
+/users/level3/2504266b/systems_programming/Coursework 2
+\end{minted}
+
+\vspace{0.5cm}
+
+    \item Crawler being compiled either using manually by a sequence of commands or by a Makefile
+        \begin{minted}[bgcolor=bg]{bash}
+-bash-4.2$ make
+clang++ -Wall -Werror -std=c++17 -o dependencyDiscoverer
+    dependencyDiscoverer.cpp -lpthread
+        \end{minted}
+
+\vspace{0.5cm}
+
+    \item The time to run the sequential crawler on all \code{.c}, \code{.l} and \code{.y} files in the \code{test} directory
+        \begin{minted}[bgcolor=bg]{bash}
+-bash-4.2$ cd test
+-bash-4.2$ time ../dependencyDiscoverer *.y *.l *.c
+real    0m0.087s
+user    0m0.014s
+sys     0m0.016s
+        \end{minted}
+
+\vspace{0.5cm}
+
+    \item the time to run the threaded crawler with one thread
+        \begin{minted}[bgcolor=bg]{bash}
+-bash-4.2$ export CRAWLER_THREADS=1
+-bash-4.2$ time ../dependencyDiscoverer *.y *.l *.c
+real    0m0.053s
+user    0m0.010s
+sys     0m0.015s
+        \end{minted}
+
+\end{enumerate}
+
+\vspace{0.5cm}
+
+%==============================================================================
+%% Runtime with Multiple Threads : Part 1
+
+\newpage
+
+\section{Runtime with Multiple Threads}
+
+\subsection{Screenshot}
+
+\begin{minted}[bgcolor=bg]{bash}
+-bash-4.2$ pwd
+/users/level3/2504266b/systems_programming/Coursework 2/test
+
+-bash-4.2$ export CRAWLER_THREADS=1
+-bash-4.2$ time ../dependencyDiscoverer *.y *.l *.c
+real    0m0.052s
+user    0m0.019s
+sys     0m0.011s
+
+-bash-4.2$ export CRAWLER_THREADS=2
+-bash-4.2$ time ../dependencyDiscoverer *.y *.l *.c
+real    0m0.027s
+user    0m0.008s
+sys     0m0.018s
+
+-bash-4.2$ export CRAWLER_THREADS=3
+-bash-4.2$ time ../dependencyDiscoverer *.y *.l *.c
+real    0m0.022s
+user    0m0.009s
+sys     0m0.018s
+
+-bash-4.2$ export CRAWLER_THREADS=4
+-bash-4.2$ time ../dependencyDiscoverer *.y *.l *.c
+real    0m0.021s
+user    0m0.015s
+sys     0m0.014s
+
+-bash-4.2$ export CRAWLER_THREADS=6
+-bash-4.2$ time ../dependencyDiscoverer *.y *.l *.c
+real    0m0.019s
+user    0m0.012s
+sys     0m0.020s
+
+-bash-4.2$ export CRAWLER_THREADS=8
+-bash-4.2$ time ../dependencyDiscoverer *.y *.l *.c
+real    0m0.019s
+user    0m0.018s
+sys     0m0.017s
+\end{minted}
+
+%==============================================================================
+%% Runtime with Multiple Threads : Part 2
+
+\newpage
+
+\subsection{Experiment}
+
+\begin{table}[htb]
+\centering
+\begin{tabular}{|l|l|l|l|}
+\hline
+\multirow{2}{*}{\begin{tabular}[c]{@{}l@{}}CRAWLER\_\\ THREADS\end{tabular}} &
+  \multicolumn{1}{c|}{1} &
+  \multicolumn{1}{c|}{2} &
+  \multicolumn{1}{c|}{3} \\ \cline{2-4} 
+ &
+  \multicolumn{3}{c|}{Elapsed Time} \\ \hline
+Execution 1 &
+  \entry{real 0m0.042s}{user 0m0.009s}{sys 0m0.015s} &
+  \entry{real 0m0.027s}{user 0m0.011s}{sys 0m0.015s} &
+  \entry{real 0m0.022s}{user 0m0.012s}{sys 0m0.015s} \\ \hline
+Execution 2 &
+  \entry{real 0m0.042s}{user 0m0.015s}{sys 0m0.009s} &
+  \entry{real 0m0.028s}{user 0m0.009s}{sys 0m0.017s} &
+  \entry{real 0m0.023s}{user 0m0.009s}{sys 0m0.017s} \\ \hline
+Execution 3 &
+  \entry{real 0m0.087s}{user 0m0.012s}{sys 0m0.026s} &
+  \entry{real 0m0.028s}{user 0m0.016s}{sys 0m0.011s} &
+  \entry{real 0m0.023s}{user 0m0.013s}{sys 0m0.014s} \\ \hline
+Median &
+  \entry{real 0m0.042s}{user 0m0.012s}{sys 0m0.015s} &
+  \entry{real 0m0.028s}{user 0m0.011s}{sys 0m0.015s} &
+  \entry{real 0m0.023s}{user 0m0.012s}{sys 0m0.015s} \\ \hline
+\end{tabular}
+\end{table}
+
+\vspace{-0.5cm}
+
+\begin{table}[htb]
+\centering
+\begin{tabular}{|l|l|l|l|}
+\hline
+\multirow{2}{*}{\begin{tabular}[c]{@{}l@{}}CRAWLER\_\\ THREADS\end{tabular}} &
+  \multicolumn{1}{c|}{4} &
+  \multicolumn{1}{c|}{6} &
+  \multicolumn{1}{c|}{8} \\ \cline{2-4} 
+ &
+  \multicolumn{3}{c|}{Elapsed Time} \\ \hline
+Execution 1 &
+  \entry{real 0m0.020s}{user 0m0.012s}{sys 0m0.016s} &
+  \entry{real 0m0.019s}{user 0m0.015s}{sys 0m0.016s} &
+  \entry{real 0m0.018s}{user 0m0.012s}{sys 0m0.019s} \\ \hline
+Execution 2 &
+  \entry{real 0m0.020s}{user 0m0.012s}{sys 0m0.016s} &
+  \entry{real 0m0.020s}{user 0m0.013s}{sys 0m0.019s} &
+  \entry{real 0m0.019s}{user 0m0.010s}{sys 0m0.024s} \\ \hline
+Execution 3 &
+  \entry{real 0m0.021s}{user 0m0.013s}{sys 0m0.015s} &
+  \entry{real 0m0.020s}{user 0m0.013s}{sys 0m0.019s} &
+  \entry{real 0m0.020s}{user 0m0.012s}{sys 0m0.023s} \\ \hline
+Median &
+  \entry{real 0m0.020s}{user 0m0.012s}{sys 0m0.016s} &
+  \entry{real 0m0.020s}{user 0m0.013s}{sys 0m0.019s} &
+  \entry{real 0m0.019s}{user 0m0.012s}{sys 0m0.023s} \\ \hline
+\end{tabular}
+\end{table}
+
+
+%==============================================================================
+%% Runtime with Multiple Threads : Part 3
+
+\vspace{0.5cm}
+
+\subsection{Discussion}
+
+With threading, we clearly see how the execution time (\code{real} time mainly) decreases drastically. Specially when shifting from one thread to two which splits the processing. Since these times are not for a \textbf{\textit{relatively} huge} program, the decrease in execution time from two threads to eight is not significant but is still there. \code{user} time is mostly constant, and \code{sys} time is variable.
+
+\end{document}

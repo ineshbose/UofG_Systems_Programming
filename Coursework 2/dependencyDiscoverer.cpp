@@ -16,8 +16,8 @@
  *
  * note that system includes (i.e. those in angle brackets) are NOT processed
  *
- * dependencyDiscoverer uses the CPATH environment variable, which can contain a
- * set of directories separated by ':' to find included files
+ * dependencyDiscoverer uses the CPATH environment variable, which can contain
+ * a set of directories separated by ':' to find included files
  * if any additional directories are specified in the command line,
  * these are prepended to those in CPATH, left to right
  *
@@ -38,7 +38,7 @@
  * ========================
  * There are three globally accessible variables:
  * - dirs: a vector storing the directories to search for headers
- * - theTable: a hash table mapping file names to a list of dependent file names
+ * - theTable: a hashtable mapping file names to a list of dependent filenames
  * - workQ: a list of file names that have to be processed
  *
  * 1. look up CPATH in environment
@@ -80,7 +80,7 @@
  *
  * 1. while there is still a file in the toProcess linked list
  * 2. fetch next file from toProcess
- * 3. lookup up the file in the master table, yielding the linked list of dependencies
+ * 3. lookup the file in the table, yielding the linked list of dependencies
  * 4. iterate over dependenceies
  *    a. if the filename is already in the printed hash table, continue
  *    b. print the filename
@@ -92,26 +92,101 @@
  *
  * dirName() - appends trailing '/' if needed
  * parseFile() - breaks up filename into root and extension
- * openFile()  - attempts to open a filename using the search path defined by the dirs vector.
+ * openFile()  - attempts to open a filename defined by the dirs vector.
  */
 
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
 #include <list>
+#include <mutex>
+#include <thread>
+
+
+
+/*
+ * Wrapper struct for hashmap theTable to make it thread-safe.
+ *
+ * All methods follow the same name for the functions for std::unordered_map
+ * including overloading operator[].
+ *
+ */
+struct Map{
+  private:
+    std::unordered_map<std::string, std::list<std::string>> theTable;
+    std::mutex mutex;
+
+  public:
+    auto insert(std::string str1, std::string str2=""){
+      std::unique_lock<std::mutex> lock(mutex);
+      return (
+        (str2.compare("") != 0) ?
+          theTable.insert({ str1, { str2 } }) : theTable.insert({ str1, {} })
+      );
+    }
+
+    std::list<std::string>& operator[](std::string name){
+      std::unique_lock<std::mutex> lock(mutex);
+      return theTable[name];
+    }
+
+    auto find(std::string name){
+      std::unique_lock<std::mutex> lock(mutex);
+      return theTable.find(name);
+    }
+
+    auto end(){
+      std::unique_lock<std::mutex> lock(mutex);
+      return theTable.end();
+    }
+
+};
+
+
+/*
+ * Wrapper struct for list/queue workQ to make it thread-safe.
+ *
+ * All methods follow the same name for the functions for std::list.
+ *
+ */
+struct Queue{
+  private:
+    std::list<std::string> workQ;
+    std::mutex mutex;
+
+  public:
+    void push_back(std::string name){
+      std::unique_lock<std::mutex> lock(mutex);
+      return workQ.push_back(name);
+    }
+
+    int size(){
+      std::unique_lock<std::mutex> lock(mutex);
+      return workQ.size();
+    }
+
+    std::string pop_front(){
+      std::unique_lock<std::mutex> lock(mutex);
+      std::string str = workQ.front();
+      workQ.pop_front();
+      return str;
+    }
+
+};
+
 
 std::vector<std::string> dirs;
-std::unordered_map<std::string, std::list<std::string>> theTable;
-std::list<std::string> workQ;
+Map theTable;
+Queue workQ;
+
 
 std::string dirName(const char * c_str) {
-  std::string s = c_str; // s takes ownership of the string content by allocating memory for it
+  std::string s = c_str;
   if (s.back() != '/') { s += '/'; }
   return s;
 }
@@ -171,9 +246,9 @@ static void process(const char *file, std::list<std::string> *ll) {
     // 2bii. if file name not already in table ...
     if (theTable.find(name) != theTable.end()) { continue; }
     // ... insert mapping from file name to empty list in table ...
-    theTable.insert( { name, {} } );
+    theTable.insert(name);
     // ... append file name to workQ
-    workQ.push_back( name );
+    workQ.push_back(name);
   }
   // 3. close file
   fclose(fd);
@@ -191,6 +266,7 @@ static void printDependencies(std::unordered_set<std::string> *printed,
     std::string name = toProcess->front();
     toProcess->pop_front();
     // 3. lookup file in the table, yielding list of dependencies
+    //std::list<std::string> *ll = theTable.tuple(name);
     std::list<std::string> *ll = &theTable[name];
     // 4. iterate over dependencies
     for (auto iter = ll->begin(); iter != ll->end(); iter++) {
@@ -207,8 +283,13 @@ static void printDependencies(std::unordered_set<std::string> *printed,
 }
 
 int main(int argc, char *argv[]) {
+
   // 1. look up CPATH in environment
   char *cpath = getenv("CPATH");
+
+  // also look up CRAWLER_THREADS
+  char *cthreads = getenv("CRAWLER_THREADS");
+  int crawler_threads = ((cthreads!=NULL) ? atoi(cthreads) : 2);
 
   // determine the number of -Idir arguments
   int i;
@@ -219,7 +300,7 @@ int main(int argc, char *argv[]) {
   int start = i;
 
   // 2. start assembling dirs vector
-  dirs.push_back( dirName("./") ); // always search current directory first
+  dirs.push_back(dirName("./"));
   for (i = 1; i < start; i++) {
     dirs.push_back( dirName(argv[i] + 2 /* skip -I */) );
   }
@@ -247,28 +328,37 @@ int main(int argc, char *argv[]) {
     std::string obj = pair.first + ".o";
 
     // 3a. insert mapping from file.o to file.ext
-    theTable.insert( { obj, { argv[i] } } );
-    
+    theTable.insert(obj, argv[i]);
+
     // 3b. insert mapping from file.ext to empty list
-    theTable.insert( { argv[i], { } } );
-    
+    theTable.insert(argv[i]);
+
     // 3c. append file.ext on workQ
-    workQ.push_back( argv[i] );
+    workQ.push_back(argv[i]);
   }
+
+  // creating a vector of threads
+  std::vector<std::thread> vt;
 
   // 4. for each file on the workQ
-  while ( workQ.size() > 0 ) {
-    std::string filename = workQ.front();
-    workQ.pop_front();
+  for(int i=0; i<crawler_threads; i++){
+    vt.push_back(std::thread([]{
+      while ( workQ.size() > 0 ) {
+        std::string filename = workQ.pop_front();
 
-    if (theTable.find(filename) == theTable.end()) {
-      fprintf(stderr, "Mismatch between table and workQ\n");
-      return -1;
-    }
+        if (theTable.find(filename) == theTable.end()) {
+          fprintf(stderr, "Mismatch between table and workQ\n");
+          exit(-1);
+        }
 
-    // 4a&b. lookup dependencies and invoke 'process'
-    process(filename.c_str(), &theTable[filename]);
+        // 4a&b. lookup dependencies and invoke 'process'
+        process(filename.c_str(), &theTable[filename]);
+      }
+    }));
   }
+
+  // join all threads
+  for(int i=0; i<vt.size(); i++){ vt[i].join(); }
 
   // 5. for each file argument
   for (i = start; i < argc; i++) {
